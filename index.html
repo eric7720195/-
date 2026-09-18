@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>靜心誦經計數器</title>
+  <!-- 載入 Chart.js 繪圖套件 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-color: #f4f0ea;
+      --card-bg: #fcfaf7;
+      --text-main: #3c342c;
+      --text-sub: #7a6e65;
+      --accent-color: #8c4331;
+      --accent-hover: #703324;
+      --border-color: #e0d8ce;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "PingFang TC", "Noto Serif TC", "Microsoft JhengHei", serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 20px 10px;
+    }
+
+    .container {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(60, 52, 44, 0.08);
+      width: 100%;
+      max-width: 500px;
+      padding: 24px 20px;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 500;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+      color: var(--accent-color);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      font-size: 0.88rem;
+      color: var(--text-sub);
+      margin-bottom: 5px;
+    }
+
+    select, input[type="text"], input[type="number"], input[type="date"] {
+      width: 100%;
+      padding: 9px 12px;
+      background-color: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--accent-color);
+    }
+
+    .custom-input-group {
+      display: none;
+      margin-top: 8px;
+    }
+
+    .counter-display {
+      margin: 18px 0;
+      padding: 18px;
+      background-color: rgba(224, 216, 206, 0.25);
+      border-radius: 8px;
+    }
+
+    .counter-label {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+    }
+
+    .counter-value {
+      font-size: 3.8rem;
+      font-weight: 600;
+      color: var(--accent-color);
+      line-height: 1.1;
+    }
+
+    .btn-main {
+      width: 100%;
+      padding: 15px;
+      font-size: 1.15rem;
+      letter-spacing: 1px;
+      background-color: var(--accent-color);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(140, 67, 49, 0.2);
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .btn-main:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-main:active {
+      transform: scale(0.98);
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .btn-sub {
+      padding: 10px;
+      background-color: #fff;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    .btn-sub:hover {
+      background-color: var(--bg-color);
+    }
+
+    .btn-reset {
+      color: #a33;
+    }
+
+    /* 查詢與紀錄區域 */
+    .query-section {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 2px solid var(--border-color);
+      text-align: left;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--accent-color);
+      margin-bottom: 12px;
+      text-align: center;
+      background-color: rgba(224, 216, 206, 0.4);
+      padding: 8px;
+      border-radius: 6px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 0.88rem;
+    }
+
+    .history-table th, .history-table td {
+      border: 1px solid var(--border-color);
+      padding: 8px;
+      text-align: center;
+    }
+
+    .history-table th {
+      background-color: rgba(224, 216, 206, 0.4);
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .history-table tr:nth-child(even) {
+      background-color: #f9f7f3;
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 15px;
+      color: var(--text-sub);
+      font-size: 0.88rem;
+    }
+
+    .query-summary {
+      margin-top: 10px;
+      text-align: right;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent-color);
+    }
+
+    /* 統計分析區域 */
+    .chart-container {
+      margin-top: 15px;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+    }
+
+    .stats-summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .stats-box {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .stats-box h4 {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 4px;
+    }
+
+    .stats-list {
+      list-style: none;
+      font-size: 0.88rem;
+    }
+
+    .stats-list li {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    
+    .stats-list span:last-child {
+      font-weight: 600;
+      color: var(--accent-color);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>靜心誦經計數器</h1>
+
+  <!-- 誦經者選擇 -->
+  <div class="form-group">
+    <label for="nameSelect">誦經者姓名</label>
+    <select id="nameSelect" onchange="handleNameChange()">
+      <option value="鄭成揮">鄭成揮</option>
+      <option value="陳純嬰">陳純嬰</option>
+      <option value="趙美菊">趙美菊</option>
+      <option value="黃瑞芳">黃瑞芳</option>
+      <option value="黃香對">黃香對</option>
+      <option value="陳曉珍">陳曉珍</option>
+      <option value="張鈞淳">張鈞淳</option>
+      <option value="陳秋光">陳秋光</option>
+      <option value="custom">自訂姓名...</option>
+    </select>
+    <div id="customNameGroup" class="custom-input-group">
+      <input type="text" id="customNameInput" placeholder="請輸入自訂姓名" oninput="handleSelectionChange()">
+    </div>
+  </div>
+
+  <!-- 經文選擇 -->
+  <div class="form-group">
+    <label for="sutraSelect">選擇經文</label>
+    <select id="sutraSelect" onchange="handleSutraChange()">
+      <option value="心經">心經</option>
+      <option value="清淨經">清淨經</option>
+      <option value="彌勒救苦真經">彌勒救苦真經</option>
+      <option value="custom">自訂經文...</option>
+    </select>
+    <div id="customSutraGroup" class="custom-input-group">
+      <input type="text" id="customSutraInput" placeholder="請輸入自訂經文名稱" oninput="handleSelectionChange()">
+    </div>
+  </div>
+
+  <!-- 日期選擇 -->
+  <div class="form-group">
+    <label for="recordDate">紀錄日期</label>
+    <input type="date" id="recordDate" onchange="handleSelectionChange()">
+  </div>
+
+  <!-- 次數顯示與主按鈕 -->
+  <div class="counter-display">
+    <div class="counter-label" id="dateDisplayLabel">所選日期次數</div>
+    <div class="counter-value" id="currentCount">0</div>
+  </div>
+
+  <button class="btn-main" onclick="addCount(1)">誦經一次 (+1)</button>
+
+  <!-- 微調控制項 -->
+  <div class="controls-grid">
+    <button class="btn-sub" onclick="addCount(-1)">-1</button>
+    <button class="btn-sub" onclick="addCount(1)">+1</button>
+    <button class="btn-sub btn-reset" onclick="resetCount()">該日歸零</button>
+  </div>
+
+  <!-- 直接指定當天次數 -->
+  <div class="form-group" style="margin-top: 15px;">
+    <label for="manualInput">快速輸入 / 修改當日次數（按 Enter 鍵）</label>
+    <input type="number" id="manualInput" min="0" placeholder="直接設定該日次數" onkeypress="handleManualSet(event)">
+  </div>
+
+
+  <!-- 歷史紀錄與查詢區域 -->
+  <div class="query-section">
+    <div class="section-title">篩選與查詢紀錄</div>
+    
+    <div class="filter-grid">
+      <div>
+        <label for="queryName">篩選姓名</label>
+        <select id="queryName" onchange="renderQueryResults()">
+          <option value="ALL">全部姓名</option>
+          <option value="鄭成揮">鄭成揮</option>
+          <option value="陳純嬰">陳純嬰</option>
+          <option value="趙美菊">趙美菊</option>
+          <option value="黃瑞芳">黃瑞芳</option>
+          <option value="黃香對">黃香對</option>
+          <option value="陳曉珍">陳曉珍</option>
+          <option value="張鈞淳">張鈞淳</option>
+          <option value="陳秋光">陳秋光</option>
+        </select>
+      </div>
+      <div>
+        <label for="querySutra">篩選經文</label>
+        <select id="querySutra" onchange="renderQueryResults()">
+          <option value="ALL">全部經文</option>
+          <option value="心經">心經</option>
+          <option value="清淨經">清淨經</option>
+          <option value="彌勒救苦真經">彌勒救苦真經</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="filter-grid">
+      <div>
+        <label for="queryStartDate">開始日期</label>
+        <input type="date" id="queryStartDate" onchange="renderQueryResults()">
+      </div>
+      <div>
+        <label for="queryEndDate">結束日期</label>
+        <input type="date" id="queryEndDate" onchange="renderQueryResults()">
+      </div>
+    </div>
+
+    <!-- 查詢表格 -->
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>姓名</th>
+          <th>經文</th>
+          <th>次數</th>
+        </tr>
+      </thead>
+      <tbody id="historyTableBody">
+        <!-- 動態渲染結果 -->
+      </tbody>
+    </table>
+
+    <div class="query-summary" id="querySummary">
+      篩選條件總計：0 次
+    </div>
+  </div>
+
+  <!-- 動態統計圖表區域 -->
+  <div class="query-section">
+    <div class="section-title">圖表與摘要統計</div>
+    
+    <div class="chart-container">
+      <canvas id="trendChart"></canvas>
+    </div>
+
+    <div class="stats-summary-grid">
+      <div class="stats-box">
+        <h4>人員累計 (篩選範圍內)</h4>
+        <ul class="stats-list" id="nameStatsList"></ul>
+      </div>
+      <div class="stats-box">
+        <h4>經文累計 (篩選範圍內)</h4>
+        <ul class="stats-list" id="sutraStatsList"></ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let records = JSON.parse(localStorage.getItem('sutra_v2_records')) || {};
+  let chartInstance = null;
+
+  window.onload = function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('recordDate').value = today;
+    
+    handleSelectionChange();
+  };
+
+  function getActiveName() {
+    const select = document.getElementById('nameSelect');
+    return select.value === 'custom' ? (document.getElementById('customNameInput').value.trim() || '自訂姓名') : select.value;
+  }
+
+  function getActiveSutra() {
+    const select = document.getElementById('sutraSelect');
+    return select.value === 'custom' ? (document.getElementById('customSutraInput').value.trim() || '自訂經文') : select.value;
+  }
+
+  function getSelectedDate() {
+    return document.getElementById('recordDate').value || new Date().toISOString().split('T')[0];
+  }
+
+  function getRecordKey() {
+    return `${getActiveName()}_${getActiveSutra()}`;
+  }
+
+  function handleNameChange() {
+    document.getElementById('customNameGroup').style.display = (document.getElementById('nameSelect').value === 'custom') ? 'block' : 'none';
+    handleSelectionChange();
+  }
+
+  function handleSutraChange() {
+    document.getElementById('customSutraGroup').style.display = (document.getElementById('sutraSelect').value === 'custom') ? 'block' : 'none';
+    handleSelectionChange();
+  }
+
+  function handleSelectionChange() {
+    updateDisplay();
+    renderQueryResults();
+  }
+
+  function updateDisplay() {
+    const key = getRecordKey();
+    const date = getSelectedDate();
+    const currentDayCount = (records[key] && records[key][date]) ? records[key][date] : 0;
+
+    document.getElementById('dateDisplayLabel').innerText = `${date} 誦念次數`;
+    document.getElementById('currentCount').innerText = currentDayCount;
+  }
+
+  function addCount(val) {
+    const key = getRecordKey();
+    const date = getSelectedDate();
+
+    if (!records[key]) records[key] = {};
+    if (!records[key][date]) records[key][date] = 0;
+    if (records[key][date] + val < 0) return;
+
+    records[key][date] += val;
+
+    if (navigator.vibrate && val > 0) navigator.vibrate(40);
+
+    saveRecords();
+    updateDisplay();
+    renderQueryResults();
+  }
+
+  function handleManualSet(event) {
+    if (event.key === 'Enter') {
+      const input = document.getElementById('manualInput');
+      const val = parseInt(input.value);
+      if (!isNaN(val) && val >= 0) {
+        const key = getRecordKey();
+        const date = getSelectedDate();
+
+        if (!records[key]) records[key] = {};
+        records[key][date] = val;
+
+        saveRecords();
+        updateDisplay();
+        renderQueryResults();
+        input.value = '';
+      }
+    }
+  }
+
+  function resetCount() {
+    if (confirm(`確定要將「${getActiveName()}」在 ${getSelectedDate()} 誦唸「${getActiveSutra()}」的次數歸零嗎？`)) {
+      const key = getRecordKey();
+      const date = getSelectedDate();
+      if (records[key] && records[key][date]) {
+        records[key][date] = 0;
+        saveRecords();
+        updateDisplay();
+        renderQueryResults();
+      }
+    }
+  }
+
+  function saveRecords() {
+    localStorage.setItem('sutra_v2_records', JSON.stringify(records));
+  }
+
+  // 渲染歷史查詢表格與統計圖表
+  function renderQueryResults() {
+    const queryName = document.getElementById('queryName').value;
+    const querySutra = document.getElementById('querySutra').value;
+    const startDate = document.getElementById('queryStartDate').value;
+    const endDate = document.getElementById('queryEndDate').value;
+
+    const tbody = document.getElementById('historyTableBody');
+    tbody.innerHTML = '';
+
+    let list = [];
+    let totalFilteredCount = 0;
+
+    // 統計用資料物件
+    let dateStats = {};
+    let nameStats = {};
+    let sutraStats = {};
+
+    Object.keys(records).forEach(key => {
+      const parts = key.split('_');
+      const name = parts[0];
+      const sutra = parts[1];
+
+      if (queryName !== 'ALL' && name !== queryName) return;
+      if (querySutra !== 'ALL' && sutra !== querySutra) return;
+
+      const dateObj = records[key];
+      Object.keys(dateObj).forEach(date => {
+        const count = dateObj[date];
+        if (count <= 0) return; 
+
+        if (startDate && date < startDate) return;
+        if (endDate && date > endDate) return;
+
+        list.push({ date, name, sutra, count });
+        totalFilteredCount += count;
+
+        // 累加統計資料
+        dateStats[date] = (dateStats[date] || 0) + count;
+        nameStats[name] = (nameStats[name] || 0) + count;
+        sutraStats[sutra] = (sutraStats[sutra] || 0) + count;
+      });
+    });
+
+    // 渲染表格 (依日期新到舊)
+    list.sort((a, b) => b.date.localeCompare(a.date));
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="no-data">尚無符合條件的紀錄</td></tr>';
+    } else {
+      list.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${item.date}</td><td>${item.name}</td><td>${item.sutra}</td><td>${item.count}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('querySummary').innerText = `篩選條件總計：${totalFilteredCount} 次`;
+
+    // 渲染摘要清單
+    renderSummaryList('nameStatsList', nameStats);
+    renderSummaryList('sutraStatsList', sutraStats);
+
+    // 繪製圖表
+    drawChart(dateStats);
+  }
+
+  // 渲染摘要小區塊
+  function renderSummaryList(elementId, dataObj) {
+    const ul = document.getElementById(elementId);
+    ul.innerHTML = '';
+    
+    const sortedKeys = Object.keys(dataObj).sort((a, b) => dataObj[b] - dataObj[a]); // 數值高到低排
+    if (sortedKeys.length === 0) {
+      ul.innerHTML = '<li style="color: #999; justify-content:center;">無資料</li>';
+      return;
+    }
+
+    sortedKeys.forEach(key => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${key}</span> <span>${dataObj[key]}</span>`;
+      ul.appendChild(li);
+    });
+  }
+
+  // 繪製每日趨勢圖表
+  function drawChart(dateStats) {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    
+    // 依日期舊到新排序 (圖表 X 軸習慣)
+    const labels = Object.keys(dateStats).sort();
+    const data = labels.map(date => dateStats[date]);
+
+    if (chartInstance) {
+      chartInstance.destroy(); // 銷毀舊圖表重繪
+    }
+
+    chartInstance = new Chart(ctx, {
+      type: 'bar', // 可改成 'line' 變折線圖
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '每日總計次數',
+          data: data,
+          backgroundColor: '#8c4331',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
