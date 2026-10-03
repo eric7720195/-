@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>靜心誦經計數器</title>
-  <!-- 載入 Chart.js 繪圖套件 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -163,15 +162,37 @@
       text-align: left;
     }
 
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: rgba(224, 216, 206, 0.4);
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+
     .section-title {
       font-size: 1.1rem;
       font-weight: 500;
       color: var(--accent-color);
-      margin-bottom: 12px;
-      text-align: center;
-      background-color: rgba(224, 216, 206, 0.4);
-      padding: 8px;
-      border-radius: 6px;
+    }
+
+    .btn-export {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      background-color: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--accent-color);
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-export:hover {
+      background-color: var(--accent-color);
+      color: #fff;
     }
 
     .filter-grid {
@@ -265,6 +286,22 @@
       font-weight: 600;
       color: var(--accent-color);
     }
+
+    /* 刪除按鈕樣式 */
+    .btn-delete {
+      background-color: #d9534f;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background-color 0.2s;
+    }
+
+    .btn-delete:hover {
+      background-color: #c9302c;
+    }
   </style>
 </head>
 <body>
@@ -326,7 +363,6 @@
     <button class="btn-sub btn-reset" onclick="resetCount()">該日歸零</button>
   </div>
 
-  <!-- 直接指定當天次數 -->
   <div class="form-group" style="margin-top: 15px;">
     <label for="manualInput">快速輸入 / 修改當日次數（按 Enter 鍵）</label>
     <input type="number" id="manualInput" min="0" placeholder="直接設定該日次數" onkeypress="handleManualSet(event)">
@@ -335,7 +371,10 @@
 
   <!-- 歷史紀錄與查詢區域 -->
   <div class="query-section">
-    <div class="section-title">篩選與查詢紀錄</div>
+    <div class="section-header">
+      <div class="section-title">篩選與查詢紀錄</div>
+      <button class="btn-export" onclick="exportCSV()">匯出 CSV</button>
+    </div>
     
     <div class="filter-grid">
       <div>
@@ -374,7 +413,6 @@
       </div>
     </div>
 
-    <!-- 查詢表格 -->
     <table class="history-table">
       <thead>
         <tr>
@@ -382,10 +420,10 @@
           <th>姓名</th>
           <th>經文</th>
           <th>次數</th>
+          <th>操作</th>
         </tr>
       </thead>
       <tbody id="historyTableBody">
-        <!-- 動態渲染結果 -->
       </tbody>
     </table>
 
@@ -396,7 +434,9 @@
 
   <!-- 動態統計圖表區域 -->
   <div class="query-section">
-    <div class="section-title">圖表與摘要統計</div>
+    <div class="section-header" style="justify-content: center;">
+      <div class="section-title">圖表與摘要統計</div>
+    </div>
     
     <div class="chart-container">
       <canvas id="trendChart"></canvas>
@@ -419,6 +459,7 @@
 <script>
   let records = JSON.parse(localStorage.getItem('sutra_v2_records')) || {};
   let chartInstance = null;
+  let currentFilteredList = []; 
 
   window.onload = function() {
     const today = new Date().toISOString().split('T')[0];
@@ -522,7 +563,6 @@
     localStorage.setItem('sutra_v2_records', JSON.stringify(records));
   }
 
-  // 渲染歷史查詢表格與統計圖表
   function renderQueryResults() {
     const queryName = document.getElementById('queryName').value;
     const querySutra = document.getElementById('querySutra').value;
@@ -535,7 +575,6 @@
     let list = [];
     let totalFilteredCount = 0;
 
-    // 統計用資料物件
     let dateStats = {};
     let nameStats = {};
     let sutraStats = {};
@@ -559,42 +598,43 @@
         list.push({ date, name, sutra, count });
         totalFilteredCount += count;
 
-        // 累加統計資料
         dateStats[date] = (dateStats[date] || 0) + count;
         nameStats[name] = (nameStats[name] || 0) + count;
         sutraStats[sutra] = (sutraStats[sutra] || 0) + count;
       });
     });
 
-    // 渲染表格 (依日期新到舊)
     list.sort((a, b) => b.date.localeCompare(a.date));
+    currentFilteredList = list;
 
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="no-data">尚無符合條件的紀錄</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="no-data">尚無符合條件的紀錄</td></tr>';
     } else {
       list.forEach(item => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${item.date}</td><td>${item.name}</td><td>${item.sutra}</td><td>${item.count}</td>`;
+        tr.innerHTML = `
+          <td>${item.date}</td>
+          <td>${item.name}</td>
+          <td>${item.sutra}</td>
+          <td>${item.count}</td>
+          <td><button class="btn-delete" onclick="deleteRecord('${item.name}', '${item.sutra}', '${item.date}')">刪除</button></td>
+        `;
         tbody.appendChild(tr);
       });
     }
 
     document.getElementById('querySummary').innerText = `篩選條件總計：${totalFilteredCount} 次`;
 
-    // 渲染摘要清單
     renderSummaryList('nameStatsList', nameStats);
     renderSummaryList('sutraStatsList', sutraStats);
-
-    // 繪製圖表
     drawChart(dateStats);
   }
 
-  // 渲染摘要小區塊
   function renderSummaryList(elementId, dataObj) {
     const ul = document.getElementById(elementId);
     ul.innerHTML = '';
     
-    const sortedKeys = Object.keys(dataObj).sort((a, b) => dataObj[b] - dataObj[a]); // 數值高到低排
+    const sortedKeys = Object.keys(dataObj).sort((a, b) => dataObj[b] - dataObj[a]);
     if (sortedKeys.length === 0) {
       ul.innerHTML = '<li style="color: #999; justify-content:center;">無資料</li>';
       return;
@@ -607,39 +647,103 @@
     });
   }
 
-  // 繪製每日趨勢圖表
+  // ===== 更新繪圖功能：改為折線圖 (Line Chart) =====
   function drawChart(dateStats) {
     const ctx = document.getElementById('trendChart').getContext('2d');
-    
-    // 依日期舊到新排序 (圖表 X 軸習慣)
     const labels = Object.keys(dateStats).sort();
     const data = labels.map(date => dateStats[date]);
 
     if (chartInstance) {
-      chartInstance.destroy(); // 銷毀舊圖表重繪
+      chartInstance.destroy();
     }
 
     chartInstance = new Chart(ctx, {
-      type: 'bar', // 可改成 'line' 變折線圖
+      type: 'line', 
       data: {
         labels: labels,
         datasets: [{
           label: '每日總計次數',
           data: data,
-          backgroundColor: '#8c4331',
-          borderRadius: 4
+          backgroundColor: 'rgba(140, 67, 49, 0.1)', 
+          borderColor: '#8c4331',                   
+          borderWidth: 2,                           
+          pointBackgroundColor: '#8c4331',          
+          pointBorderColor: '#fff',                 
+          pointRadius: 4,                           
+          fill: true,                               
+          tension: 0.3                              
         }]
       },
       options: {
         responsive: true,
         scales: {
-          y: { beginAtZero: true, ticks: { precision: 0 } }
+          y: { 
+            beginAtZero: true, 
+            ticks: { precision: 0 } 
+          },
+          x: {
+            grid: {
+              display: false 
+            }
+          }
         },
         plugins: {
           legend: { display: false }
+        },
+        interaction: {
+          intersect: false,
+          mode: 'index',
         }
       }
     });
+  }
+
+  function exportCSV() {
+    if (currentFilteredList.length === 0) {
+      alert('目前沒有資料可匯出！');
+      return;
+    }
+
+    let csvContent = '\uFEFF日期,姓名,經文,次數\n';
+
+    currentFilteredList.forEach(item => {
+      csvContent += `"${item.date}","${item.name}","${item.sutra}","${item.count}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    link.href = url;
+    link.download = `靜心誦經紀錄_${todayStr}.csv`;
+    
+    document.body.appendChild(link);
+    link.click();
+    
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  // ===== 刪除單筆紀錄的函式 =====
+  function deleteRecord(name, sutra, date) {
+    if (confirm(`確定要刪除「${name}」在 ${date} 誦念「${sutra}」的紀錄嗎？`)) {
+      const key = `${name}_${sutra}`;
+      
+      if (records[key] && records[key][date]) {
+        delete records[key][date]; // 將該日期紀錄刪除
+        
+        // 檢查該組合是否已經沒有任何日期紀錄，若為空則一併清空 key
+        if (Object.keys(records[key]).length === 0) {
+          delete records[key];
+        }
+        
+        saveRecords();
+        updateDisplay();
+        renderQueryResults();
+      }
+    }
   }
 </script>
 
